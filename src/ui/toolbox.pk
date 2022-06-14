@@ -1,0 +1,95 @@
+#
+# Copyright (c) 2022 Thakee Nathees
+# Distributed Under The MIT License
+#
+
+import raylib as rl
+from ui_element import UiElement
+
+## The ui toolbox element.
+class ToolBox is UiElement
+  def _init()
+    super()
+    ## Height will be calculated by the ui layout construction.
+    ## Since we have a hardcoded layout for the ui.
+    self.size.x = 450
+    self._bg = rl.Color(35, 35, 35)
+    
+    
+    ## Font colors.
+    self.white = rl.Color(255, 255, 255)
+    self.red = rl.Color(200, 50, 50)
+    self.green = rl.Color(100, 150, 30)
+    
+    self.font_size = 20
+    self.draw_pos = null ## Next draw text position.
+    self.spacing = 10 ## Space between 2 texts.
+  end
+  
+  def draw()
+    self._draw_texts()
+    self._draw_done_puzzles()
+  end
+
+  def _draw_texts()
+  
+    ## Draw background.
+    rl.DrawRectangle(
+      self.pos.x,
+      self.pos.y,
+      self.size.x,
+      self.size.y,
+      self._bg)
+    
+    margin = 10
+    self.draw_pos = rl.Vector2(self.pos.x + margin, self.pos.y + margin)
+
+    self._draw_text('Puzzle ID : ${self.gs.puzzle.id}', -1, self.white)
+    self._draw_text('Rating : ${self.gs.puzzle.rating}', -1, self.white)
+    
+    if self.gs.curr_move <= 1 and not self.gs.wrong_move
+      text = "Black to move"
+      if self.gs.player_white then text = "White to move" end
+      self._draw_text(text, -1, self.white)
+    else
+      if self.gs.wrong_move
+        self._draw_text("That's not the move. Try something else.", -1, self.red)
+      else
+        self._draw_text("Best move. Keep going...", -1, self.green)
+      end
+    end
+    
+  end
+  
+  def _draw_done_puzzles()
+    pos = rl.Vector2()
+    pos.x = self.draw_pos.x
+    pos.y = self.draw_pos.y
+    
+    w = 20; h = 15; space = 5
+    
+    for i in self.gs.done
+      color = self.green
+      if not i then color = self.red end
+      rl.DrawRectangle(pos.x, pos.y, w, h, color)
+      
+      pos.x += w + space
+      if pos.x + w + space >= self.pos.x + self.size.x
+        pos.x = self.draw_pos.x
+        pos.y += h + space
+      end
+    end
+  end
+  
+  ## Draw the text and update the draw position.
+  def _draw_text(text, font_size, color)
+    if font_size == -1 then font_size = self.font_size end
+    
+    rl.DrawText(
+      text,
+      self.draw_pos.x, self.draw_pos.y,
+      font_size, color)
+    self.draw_pos.y += self.font_size + self.spacing
+  end
+
+end

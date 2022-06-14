@@ -1,0 +1,154 @@
+#
+# Copyright (c) 2022 Thakee Nathees
+# Distributed Under The MIT License
+#
+
+import raylib as rl
+from src.config import config
+import math
+import src.chess
+
+## Handle all the drawing things of the board.
+
+## Darws an empty board.
+def draw_board(board)
+  
+  colors = [config.white, config.black]
+  
+  highlight = null
+  last_move = board.gs.cp.get_last_move()
+  if last_move
+    highlight = [config.hl_white, config.hl_black]
+  end
+  
+  for i in 0..8
+    for j in 0..8
+      
+      ## Get square color.
+      color = colors[(i + j) % 2]
+      if last_move
+        sq_index = j * 8 + i
+        if board.flipped then sq_index = 63 - sq_index end
+        if sq_index == last_move.first or sq_index == last_move.last
+          color = highlight[(i + j) % 2]
+        end
+      end
+      
+      ## Draw the square.
+      rl.DrawRectangle(
+        board.pos.x + i * board.sqsz,
+        board.pos.y + j * board.sqsz,
+        board.sqsz, board.sqsz, color)
+      
+      ## Draw coordinate.
+      if j == 7
+        c = chr(i + ord('a'))
+        if board.flipped
+          c = chr(7 - i + ord('a'))
+        end
+        
+        rl.DrawText(
+          c,
+          board.pos.x + (i + .1) * board.sqsz,
+          board.pos.y + (j + .8) * board.sqsz,
+          board.sqsz * .2,
+          colors[(i + j + 1) % 2])
+      end
+      
+      if i == 7
+        c = str(8 - j)
+        if board.flipped
+          c = str(j + 1)
+        end
+        rl.DrawText(
+          c,
+          board.pos.x + (i + .8) * board.sqsz,
+          board.pos.y + (j + .1) * board.sqsz,
+          board.sqsz * .2,
+          colors[(i + j + 1) % 2])
+      end
+      
+    end
+  end
+end
+  
+## Draw a single piece at the position [x, y] with given size.
+def _draw_piece(x, y, size, piece)
+  texture = config.curr_texture
+  source = config.get_piece_rect(piece)
+  dest = rl.Rectangle(x, y, size, size)
+  rl.DrawTexturePro(
+    texture,
+    source,
+    dest,
+    rl.Vector2(0, 0),        ## Origin.
+    0,                       ## Rotation.
+    rl.Color(255, 255, 255)) ## Tint.
+end
+  
+## Draws all the pieces in the board.pieces list.
+def draw_pieces(board)
+  
+  size = board.sqsz * board.pscale
+  for i in 0..64
+    piece_index = i
+    if board.flipped then piece_index = 63 - i end
+    
+    ## We draw dragged piece at last to make it on top of everything else.
+    if piece_index == board._dragged
+      continue
+    end
+    
+    piece = board.gs.cp.pieces[piece_index]
+    
+    if piece.type == chess.PIECE_NONE then continue end
+    _draw_piece(
+      piece.position.x,
+      piece.position.y,
+      size,
+      piece.type)
+  end
+  
+  if board._dragged != -1
+    piece = board.gs.cp.pieces[board._dragged]
+    _draw_piece(
+      piece.position.x,
+      piece.position.y,
+      size, piece.type)
+  end
+end
+
+
+def draw_legal_moves(board)
+
+  dot_radius = board.sqsz * .15
+  circle_thickness = 4
+  
+  for i in 0 .. board._legal_moves.length
+    square_index = board._legal_moves[i]
+    
+    ind = square_index ## Draw square index depend on the board flip.
+    if board.flipped
+      ind = 63 - square_index
+    end
+    x = ind % 8 ## File
+    y = math.floor(ind / 8) ## Rank inverted.
+    
+    color = [config.lm_white, config.lm_black][(x + y) % 2]
+    
+    ## Draw a dot if it's an empty square.
+    if board.gs.cp.pieces[square_index].type == chess.PIECE_NONE
+      rl.DrawCircle(
+        x * board.sqsz + board.pos.x + board.sqsz / 2,
+        y * board.sqsz + board.pos.y + board.sqsz / 2,
+        dot_radius, color)
+    else
+      rl.DrawRing(
+        rl.Vector2(x * board.sqsz + board.pos.x + board.sqsz / 2,
+                   y * board.sqsz + board.pos.y + board.sqsz / 2),
+        board.sqsz / 2 - circle_thickness,
+        board.sqsz / 2,
+        0, 360, 30, color)
+    end
+  end
+end

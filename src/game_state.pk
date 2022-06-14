@@ -1,0 +1,63 @@
+#
+# Copyright (c) 2022 Thakee Nathees
+# Distributed Under The MIT License
+#
+
+import raylib as rl
+from src.config import config
+import src.chess
+import math, time
+
+
+STATE_INITIAL = 0
+STATE_PLAYERS_MOVE = 1
+STATE_AIS_MOVE = 2
+STATE_EVAL_PLAYER_MOVE = 3 ## Wati some time before reject or approve player move.
+STATE_DONE_CURRENT = 4
+
+class GameState
+  def _init()
+    self.state = STATE_INITIAL
+    self.curr_pz = 0 ## Current puzzle index.
+    self.puzzle = null
+    self.curr_move = 0 ## Current solution move number.
+    
+    ## Player's color TODO: allow both for different state
+    ## Example: analyze, vs computer, etc.
+    self.player_white = true
+    
+    ## If any move went wrong this will be true.
+    self.wrong_move = false
+    
+    ## An array of bools if done correctly a true will be appended
+    ## otherwise false will be appended.
+    self.done = []
+    
+    self.cp = chess.Position()
+    self.cp.apply_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
+  end
+  
+  def next_puzzle()
+    
+    if self.state != STATE_INITIAL
+      self.done.append(not self.wrong_move)
+    end
+    
+    self.state = STATE_AIS_MOVE
+    
+    self.timer = time.clock() ## State change timer.
+  
+    ## TODO: what if no more puzzles ?.
+    pz = config.puzzles[self.curr_pz]
+    self.curr_pz += 1
+    
+    self.puzzle = pz
+    self.curr_move = 0
+    
+    self.cp.apply_fen(pz.fen)
+    self.player_white = not self.cp.white_to_move
+    self.wrong_move = false
+  end
+  
+end
+

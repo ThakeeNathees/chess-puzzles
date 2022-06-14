@@ -1,0 +1,162 @@
+#
+# Copyright (c) 2022 Thakee Nathees
+# Distributed Under The MIT License
+#
+
+from position import Position, Move
+import math
+
+COL_WHITE = 0b0000
+COL_BLACK = 0b1000
+
+PIECE_NONE   = 0
+PIECE_PAWN   = 1
+PIECE_ROOK   = 2
+PIECE_KNIGHT = 3
+PIECE_BISHOP = 4
+PIECE_QUEEN  = 5
+PIECE_KING   = 6
+
+## Castling right masks.
+_CSTL_WQ = 1 << 0
+_CSTL_WK = 1 << 1
+_CSTL_BQ = 1 << 2
+_CSTL_BK = 1 << 3
+
+## Fourth bit mask is color value
+## if 1 => black, 0 => white.
+_COL_MASK   = 0b1000
+_PIECE_MASK = 0b0111
+
+## Maps char to it's piece.
+_CHAR_PIECE_MAP = {
+  'p' : PIECE_PAWN,
+  'r' : PIECE_ROOK,
+  'n' : PIECE_KNIGHT,
+  'b' : PIECE_BISHOP,
+  'q' : PIECE_QUEEN,
+  'k' : PIECE_KING,
+}
+
+## Maps piece value ot it's char.
+_PIECE_CHAR_MAP = {
+  PIECE_PAWN   : 'p',
+  PIECE_ROOK   : 'r',
+  PIECE_KNIGHT : 'n',
+  PIECE_BISHOP : 'b',
+  PIECE_QUEEN  : 'q',
+  PIECE_KING   : 'k',
+}
+
+## Calc board is 10 * 12 board where the middle 8*8 of the board directly mapped
+## to the chess board (1) and the edge of the board index are invalid (0) (sentinal
+## to prevnet from keep going).
+## Reference: https://www.youtube.com/watch?v=VuJL4qhpp-8
+_CALC_BOARD = [
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
+  0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
+  0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
+  0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
+  0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
+  0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
+  0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
+  0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+]
+
+
+## Normal board to calc board.
+def nb2cb(index)
+  file = index % 8
+  rank = math.floor(index / 8)
+  return rank * 10 + (file + 21)
+end
+
+
+## Calc board to normal board.
+def cb2nb(index)
+  file_ = index % 10
+  if file_ == 0 or file_ == 9
+    return -1
+  end
+  rank_ = math.floor(index / 10)
+  if rank_ < 2 or rank_ > 9
+    return -1
+  end
+  return (file_-1) + (rank_-2) * 8
+end
+
+
+## Returns the piece type without color value.
+def piece_type(piece)
+  return piece & _PIECE_MASK
+end
+
+
+## Returns the piece color.
+def piece_color(piece)
+  return piece & _COL_MASK
+end
+
+
+## Return a piece value from char.
+def char_to_piece(char)
+  piece = _CHAR_PIECE_MAP[char.lower()]
+  return [COL_WHITE, COL_BLACK][Number(char.lower() == char)] | piece
+end
+
+
+## Return a piece char from the piece value.
+def piece_to_char(piece)
+  pc = _PIECE_CHAR_MAP[piece_type(piece)]
+  if is_white(piece) then pc = pc.upper() end
+  return pc
+end
+
+
+## Return true if the piece color is white.
+def is_white(piece)
+  return (_COL_MASK & piece) == COL_WHITE
+end
+
+
+## Convert algebric notation to board index.
+## ie: 'a8' => 0, 'b7' => 9, ...
+def algebric_to_index(algebric)
+  x = ord(algebric[0]) - ord('a')
+  y = 8 - (ord(algebric[1]) - ord('0'));
+  return y * 8 + x;
+end
+
+
+## Convert a long algybric move to square index.
+## Returns a range object for minimal memory usage. Where the
+## first value is the from square and the second value is the
+## to square. If the move contain any promotion, it'll be
+## ignored. and that should be gathered from the get_promotion
+## function defined bellow.
+def lan_to_index(move)
+  x1 = ord(move[0]) - ord('a')
+  y1 = 8 - (ord(move[1]) - ord('0'));
+  sq_from = y1 * 8 + x1
+  
+  x2 = ord(move[2]) - ord('a')
+  y2 = 8 - (ord(move[3]) - ord('0'));
+  sq_to = y2 * 8 + x2
+  
+  return sq_from .. sq_to
+end
+
+    
+## Returns the promotion piece if the move has any.
+## Otherwise it'll return PIECE_NONE.
+def get_promotion(move)
+  if move.length == 5
+    return _CHAR_PIECE_MAP[move[4]]
+  end
+  return PIECE_NONE
+end
+

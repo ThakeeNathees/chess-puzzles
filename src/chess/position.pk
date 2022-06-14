@@ -1,0 +1,263 @@
+#
+# Copyright (c) 2022 Thakee Nathees
+# Distributed Under The MIT License
+#
+
+import src.chess, legal_moves
+import math
+
+## Chess position class, potential to keep track of history and undo/redo.
+
+class Move
+  def _init(pos, fr, to, promotion)
+    self.fr = fr ## From square.
+    self.to = to ## To square.
+    
+    if promotion != chess.PIECE_NONE
+      assert(pos.pieces[fr].type == chess.PIECE_PAWN)
+      assert(not (promotion in [chess.PIECE_KING, chess.PIECE_PAWN]))
+    end
+    
+    ## If the move is a promotion this will be the promoted piece.
+    self.promotion = promotion
+    
+    self.captured = null ## The Piece instance that was captured.
+    self.cap_index = -1  ## Index of the captured piece (not always equal to 'to')
+    
+    if pos.pieces[to].type != chess.PIECE_NONE
+      self.captured = pos.pieces[to]
+      self.cap_index = to
+    elif to == pos.enpassant_target
+      
+      enp_index = -1 ## Enpassant pawn index.
+      color = chess.piece_color(pos.pieces[fr].type)
+      if color == chess.COL_WHITE
+        enp_index = to + 8
+      else
+        enp_index = to - 8
+      end
+      
+      self.captured = pos.pieces[enp_index]
+      self.cap_index = enp_index
+    end
+    
+    ## Position state before making the move to restore the state.
+    self.castling = pos.castling
+    self.enpassant_target = pos.enpassant_target
+    self.half_moves = pos.half_moves
+  end
+end
+
+## A piece type potential to hold other user data with it.
+## (we're adding position in the ui as a dynamic attribute)
+class Piece
+  def _init()
+    self.type = chess.PIECE_NONE
+  end
+end
+
+
+class Position
+
+  def _clear()
+    for i in 0..64
+      self.pieces[i].type = chess.PIECE_NONE
+    end
+    
+    self.mp = 0 ## Move pointer for redo and undo points in moves array.
+    self.moves = [] ## Array of Move instances.
+    
+    self.white_to_move = true
+    self.castling = 0 ## Flags of chess._CSTL_<...>
+    self.enpassant_target = -1 ## Enpassant target square.
+    self.half_moves = 0 ## How many half moves since last capture or pawn push.
+  end
+  
+  
+  def _init()
+    self.pieces = [] ## An array of 64 Piece instance.
+    for i in 0..64
+      self.pieces.append(Piece())
+    end
+    
+    self._clear()
+  end
+  
+  
+  def play(move)
+    assert(move is Move)
+    
+    piece = self.pieces[move.fr].type
+    assert(piece != chess.PIECE_NONE)
+    color = chess.piece_color(piece)
+    
+    ## If true we reset half move clock.
+    hm_reset = ((self.pieces[move.to].type != chess.PIECE_NONE) or
+               chess.piece_type(piece) == chess.PIECE_PAWN)
+    
+    ## Move the piece.
+    self.pieces[move.to] = self.pieces[move.fr]
+    self.pieces[move.fr] = Piece()
+    
+    ## Enpassant.
+    enpassant_target = -1
+    if chess.piece_type(piece) == chess.PIECE_PAWN
+      if math.abs(move.to - move.fr) == 16 ## Moved 2 squares
+        enpassant_target = move.fr + (move.to - move.fr) / 2
+      elif move.to == self.enpassant_target
+        assert((move.cap_index != -1) and (move.cap_index != move.to))
+        if color == chess.COL_WHITE
+          self.pieces[move.to + 8] = Piece() ## Remove the captured piece.
+        else
+          self.pieces[move.to - 8] = Piece() ## Remove the captured piece.
+        end
+      end
+    end
+    self.enpassant_target = enpassant_target
+    
+    ## Castling.
+    if chess.piece_type(piece) == chess.PIECE_KING
+      if move.to - move.fr == 2 ## King side castling
+        assert(chess.piece_type(self.pieces[move.to + 1].type) == chess.PIECE_ROOK)
+        ## Only move the rook here.
+        self.pieces[move.to - 1] = self.pieces[move.to + 1]
+        self.pieces[move.to + 1] = Piece()
+        
+      elif move.to - move.fr == -2 ## Queen side castling
+        assert(chess.piece_type(self.pieces[move.to - 2].type) == chess.PIECE_ROOK)
+        ## Only move the rook here.
+        self.pieces[move.to + 1] = self.pieces[move.to - 2]
+        self.pieces[move.to - 2] = Piece()
+      end
+      
+      if color == chess.COL_WHITE
+        self.castling &= ~chess._CSTL_WK
+        self.castling &= ~chess._CSTL_WQ
+      else
+        self.castling &= ~chess._CSTL_BK
+        self.castling &= ~chess._CSTL_BQ
+      end
+    end
+    
+    ## Castling rights (after a rook move).
+    if chess.piece_type(piece) == chess.PIECE_ROOK
+      if color == chess.COL_WHITE and (self.castling & chess._CSTL_WK) and move.fr == 63
+        self.castling &= ~chess._CSTL_WK
+      elif color == chess.COL_WHITE and (self.castling & chess._CSTL_WQ) and move.fr == 56
+        self.castling &= ~chess._CSTL_WQ
+      elif color == chess.COL_BLACK and (self.castling & chess._CSTL_BK) and move.fr == 7
+        self.castling &= ~chess._CSTL_BK
+      elif color == chess.COL_BLACK and (self.castling & chess._CSTL_BQ) and move.fr == 0
+        self.castling &= ~chess._CSTL_BQ
+      end
+    end
+
+    self.white_to_move = not self.white_to_move
+    if hm_reset then self.half_moves = 0
+    else self.half_moves += 1
+    end
+    
+    if self.mp == self.moves.length
+      self.moves.append(move)
+      self.mp += 1
+    else
+      self.moves[self.mp] = move
+      self.mp += 1
+    end
+  end
+  
+  
+  ## Returns the last move as a range if it has any otherwise null
+  ## used at last move highlighting.
+  def get_last_move()
+    if self.mp == 0 then return null end
+    move = self.moves[self.mp - 1]
+    return move.fr .. move.to
+  end
+  
+  ## Undo a move.
+  def undo()
+    if self.mp == 0 then return end
+    self.mp -= 1
+    move = self.moves[self.mp]
+    
+    ## Restore the last state.
+    self.white_to_move = not self.white_to_move
+    self.castling = move.castling
+    self.enpassant_target = move.enpassant_target
+    self.half_moves = move.half_moves
+    
+    ## Arranage the pieces.
+    piece = self.pieces[move.to] ## Moved piece.
+    if move.promotion != chess.PIECE_NONE
+      piece = Piece()
+      piece.type = chess.PIECE_PAWN
+    end
+    
+    self.pieces[move.fr] = piece
+    
+    if move.captured
+      if move.cap_index != move.to ## Enpassant
+        self.pieces[move.cap_index] = move.captured
+        self.pieces[move.to] = Piece()
+      else
+        self.pieces[move.to] = move.captured
+      end      
+    else
+      self.pieces[move.to] = Piece()
+    end
+    
+  end
+  
+  
+  ## Construct the position from a fen string.
+  ## Example: "r6k/pp2r2p/4Rp1Q/3p4/8/1N1P2R1/PqP2bPP/7K b - - 0 24"
+  ## Assuming the FEN string is valid.
+  def apply_fen(fen)
+    self._clear() ## Clear all the states.
+    
+    split = fen.split(' ')
+    
+    ## Construct the pieces array.
+    i = 0
+    for c in split[0]
+      if c == '/' then continue end
+      if ord('0') <= ord(c) and ord(c) <= ord('9')
+        for j in 0 .. Number(c)
+          self.pieces[i + j].type = chess.PIECE_NONE
+        end
+        i += Number(c)
+      else
+        self.pieces[i].type = chess.char_to_piece(c)
+        i += 1
+      end
+    end
+    
+    self.white_to_move = (split[1] == 'w')
+    
+    self.castling = 0
+    if 'K' in split[2] then self.castling |= chess._CSTL_WK end
+    if 'Q' in split[2] then self.castling |= chess._CSTL_WQ end
+    if 'k' in split[2] then self.castling |= chess._CSTL_BK end
+    if 'q' in split[2] then self.castling |= chess._CSTL_BQ end
+    
+    if split[3] != '-'
+      self.enpassant_target = chess.algebric_to_index(split[3])
+    end
+    
+    self.half_moves = Number(split[4])
+    ## This is full move count we're not using it. But we're constructing
+    ## a number to validate and ensure.
+    Number(split[5])
+    
+  end
+  
+  
+  ## Returns the legal moves of the piece at the index.
+  ## The piece must be the next color that should be played.
+  def get_legal_moves_of(index)
+    return legal_moves.get_legal_moves_of(self, index)
+  end
+  
+end
+

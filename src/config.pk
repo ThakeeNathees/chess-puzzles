@@ -1,0 +1,117 @@
+#
+# Copyright (c) 2022 Thakee Nathees
+# Distributed Under The MIT License
+#
+
+## A shared global state of game configs, settings, themes,
+## puzzle data and other resources.
+
+import raylib as rl
+from path import dirname, join, normpath
+import chess
+
+## Resurces directory absolute path.
+RES_DIR = normpath(join(dirname(__file__), "..", "res"))
+
+class Config
+  def _init()
+    self.title = "Chess Puzzles"
+    self.fps = 30
+    
+    ## List of puzzle entries (class defined bellow).
+    self.puzzles = []
+    
+    ## Colors.
+    self.clear_color = rl.Color(49, 46, 43)
+    self.black = rl.Color(181, 135, 99)
+    self.white = rl.Color(240, 217, 181)
+    
+    ## Highlight black.
+    self.hl_black = rl.Color(170, 160, 60)
+    self.hl_white = rl.Color(200, 210, 100)
+    
+    ## Legal move colors.
+    self.lm_white = rl.Color(130, 150, 100)
+    self.lm_black = rl.Color(100, 110, 64)
+    
+    
+    ## Piece Texture. (should be initialized after raylib context
+    ## initialized).
+    self.texture1 = null
+    self.curr_texture = null
+    
+    # Piece texture should be in the bellow format, where each
+    # piece size should be 285 px.
+    #
+    #   K Q B N R P
+    #   k q b n r p
+    self._piece_size = 285
+    self._piece_order = 'kqbnrp'
+    
+    self._load_puzzles()
+  end
+  
+  ## This should be called after raylib context initialized.
+  def initialize()
+    self.texture1 = rl.LoadTexture(join(RES_DIR, "pieces.png"))
+    self.curr_texture = self.texture1
+  end
+  
+  ## This should be called before raylib context de-initialized.
+  def cleanup()
+    rl.UnloadTexture(self.texture1)
+  end
+  
+  ## Returns the texture rectangle for the piece.
+  def get_piece_rect(piece)
+    x = self._piece_order.find(chess.piece_to_char(piece).lower()) * self._piece_size
+    y = self._piece_size * Number(not chess.is_white(piece))
+    return rl.Rectangle(x, y, self._piece_size, self._piece_size)
+  end
+  
+  ## Load and construct self.puzzles from the lichess puzzles database.
+  ## The single entry in the csv file is as bellow.
+  ##
+  ## PuzzleId,FEN,Moves,Rating,RatingDeviation,Popularity,NbPlays,Themes,GameUrl
+  def _load_puzzles()
+  
+    puzzle_file_path = join(RES_DIR, "lichess_db.csv")
+    fp = open(puzzle_file_path)
+    line = ''
+    while line = fp.getline()
+      line = line.split(',')
+      ## Assuming that the file contain valid values otherwise a runtime
+      ## error will be thrown.
+      moves = line[2].split(' ')
+      skip = false
+      for move in moves
+        if move.length == 5 then skip = true end
+      end
+      if skip then continue end
+      pz = Puzzle(line[0], line[1], moves, Number(line[3]),
+                  Number(line[4]), Number(line[5]), Number(line[6]),
+                  line[7].split(' '), line[8])
+      self.puzzles.append(pz)
+    end
+    fp.close()
+  end
+  
+end
+
+## A puzzle entry from the lichess database csv file.
+class Puzzle
+  def _init(id, fen, moves, rating, rating_deviation,
+            popularity, nbplays, themes, url)
+    self.id = id         ## Unique id of the puzzle.
+    self.fen = fen       ## FEN string of the position.
+    self.moves = moves   ## First move is the opponent.
+    self.rating = rating ## Average rating of the puzzle.
+    self.rating_deviation = rating_deviation
+    self.popularity = popularity
+    self.nbplays = nbplays
+    self.themes = themes ## List of themes.
+    self.url = url       ## Lichess puzzle url.    
+  end
+end
+
+config = Config()

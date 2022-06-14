@@ -1,0 +1,22 @@
+#
+# Copyright (c) 2022 Thakee Nathees
+# Distributed Under The MIT License
+#
+
+from raylib import Vector2
+import math
+
+## Return the liner interpolation between vectors v1 and v2.
+## delta should be between 0 and 1.
+def lerp(v1, v2, delta)
+  return Vector2(
+    (v2.x - v1.x) * delta + v1.x,
+    (v2.y - v1.y) * delta + v1.y)
+end
+
+## Returns the square algebric name from index for debugging.
+def square_name(index)
+  file = chr((index % 8) + ord('a'))
+  rank = 8 - math.floor(index/8)
+  return '$file$rank'
+end

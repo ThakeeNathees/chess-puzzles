@@ -1,0 +1,37 @@
+#
+# Copyright (c) 2022 Thakee Nathees
+# Distributed Under The MIT License
+#
+
+import raylib as rl
+
+## An abstract ui element base class.
+class UiElement
+  def _init()
+    self.pos = rl.Vector2()
+    self.size = rl.Vector2()
+  end
+  
+  def initialize(gs)
+    self.gs = gs
+  end
+  
+  def update()
+  end
+  
+  def draw()
+  end
+  
+  ## Returns true if the mouse is inside the ui element.
+  def contain_mouse()
+    mp = rl.GetMousePosition()
+    if mp.x < self.pos.x or mp.y < self.pos.y
+      return false
+    end
+    if self.pos.x + self.size.x < mp.x or self.pos.y + self.size.y < mp.y
+      return false
+    end
+    return true
+  end
+  
+end

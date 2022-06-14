@@ -1,0 +1,91 @@
+#
+# Copyright (c) 2022 Thakee Nathees
+# Distributed Under The MIT License
+#
+
+import raylib as rl
+import src.chess, src.utils, src.game_state
+import time
+
+## Time delay between 2 states.
+WATI_TIME = .2
+
+def update(board)
+  _update_piece_positions(board)
+  _update_state(board)
+end
+
+## Liner interpolate the piece position for smooth movements.
+def _update_piece_positions(board)
+  for i in 0..64
+    if i == board._dragged then continue end
+    
+    piece = board.gs.cp.pieces[i]
+    if piece.type == chess.PIECE_NONE then continue end
+    
+    target = utils.lerp(piece.position, board._index_to_piece_pos(i), .5)
+    board.gs.cp.pieces[i].position = target
+  end
+  
+  if board._dragged != -1
+    mp = rl.GetMousePosition()
+    mp.x -= board.sqsz / 2
+    mp.y -= board.sqsz / 2
+    board.gs.cp.pieces[board._dragged].position = mp
+  end
+end
+
+
+def _update_state(board)
+
+  if board.gs.state == game_state.STATE_INITIAL
+    if time.clock() - board.gs.timer >= WATI_TIME
+      board.gs.state = game_state.STATE_AIS_MOVE
+      board.gs.timer = time.clock()
+    end
+  
+  elif board.gs.state == game_state.STATE_AIS_MOVE
+    assert(board.gs.player_white != board.gs.cp.white_to_move)
+    
+    ## AI animation doesn't need extra time.
+    if true ## time.clock() - board.gs.timer >= WATI_TIME
+      mv = chess.lan_to_index(board.gs.puzzle.moves[board.gs.curr_move])
+      pp = chess.get_promotion(board.gs.puzzle.moves[board.gs.curr_move])
+      board.gs.cp.play(chess.Move(board.gs.cp, mv.first, mv.last, pp))
+      board.gs.curr_move += 1
+      board.gs.state = game_state.STATE_PLAYERS_MOVE
+      
+      board.gs.timer = time.clock()
+    end
+  
+  elif board.gs.state == game_state.STATE_EVAL_PLAYER_MOVE
+    if time.clock() - board.gs.timer >= WATI_TIME
+      mv = chess.lan_to_index(board.gs.puzzle.moves[board.gs.curr_move])
+      lm = board.gs.cp.get_last_move()
+      if mv == lm
+        board.gs.curr_move += 1
+        if board.gs.curr_move >= board.gs.puzzle.moves.length
+          board.gs.state = game_state.STATE_DONE_CURRENT
+        else
+          board.gs.state = game_state.STATE_AIS_MOVE
+        end
+      else ## Wrong move.
+        board.gs.cp.undo()
+        board.gs.wrong_move = true
+        board.gs.state = game_state.STATE_PLAYERS_MOVE
+      end
+      
+      board.gs.timer = time.clock()
+    end
+
+  elif board.gs.state == game_state.STATE_DONE_CURRENT
+    if time.clock() - board.gs.timer >= WATI_TIME
+      board.gs.next_puzzle() ## This will update the state.
+      board.flipped = board.gs.cp.white_to_move
+      board._reset_piece_position()
+      board.gs.timer = time.clock()
+    end
+    
+  end
+
+end

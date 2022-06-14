@@ -1,0 +1,90 @@
+#
+# Copyright (c) 2022 Thakee Nathees
+# Distributed Under The MIT License
+#
+
+import raylib as rl
+from src.config import config
+
+from src.game_state import GameState
+from board import Board
+from toolbox import ToolBox
+
+class UI
+  def _init()
+    self.margin = 10 ## Space between 2 ui elements.
+    self.ui_elements = []
+    winsz = self._construct_layout()
+    
+    ## Initialize raylib context.
+    rl.InitWindow(winsz.x, winsz.y, config.title)
+    rl.SetTargetFPS(config.fps)
+    
+    config.initialize()
+    self.gs = GameState()
+    
+    for e in self.ui_elements
+      e.initialize(self.gs)
+    end
+  end
+  
+  
+  def should_close()
+    return rl.WindowShouldClose()
+  end
+  
+  
+  def update()
+    for e in self.ui_elements
+      e.update()
+    end
+  end
+  
+  
+  def draw()
+    rl.BeginDrawing()
+    rl.ClearBackground(config.clear_color)
+    for e in self.ui_elements
+      e.draw()
+    end
+    rl.EndDrawing()
+  end
+  
+  
+  def cleanup()
+    config.cleanup()
+    rl.CloseWindow()
+  end
+  
+  def _construct_layout()
+  
+    mg = self.margin
+    
+    # +---------------------------------------+
+    # |mg                    mg            mg |
+    # |                      |                |
+    # |                      |                |
+    # |      board           |    toolbox     |
+    # |                      |                |
+    # |                      |                |
+    # |                      |                |
+    # |mg                    |                |
+    # +---------------------------------------+
+    
+    board = Board()
+    toolbox = ToolBox()
+
+    ## Adjust the toolbox height to the board height.
+    toolbox.size.y = board.size.y
+    board.pos = rl.Vector2(mg, mg)
+    toolbox.pos = rl.Vector2(mg + board.size.x + mg, mg)
+    
+    self.ui_elements.append(board)
+    self.ui_elements.append(toolbox)
+    
+    w = mg + board.size.x + mg + toolbox.size.x + mg
+    h = mg + board.size.y + mg
+    return rl.Vector2(w, h)
+  end
+  
+end

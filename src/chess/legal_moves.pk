@@ -1,0 +1,148 @@
+
+#
+# Copyright (c) 2022 Thakee Nathees
+# Distributed Under The MIT License
+#
+
+import src.chess
+import math
+
+## Returns all the pseudo legal moves of the piece at index.
+## 1. After the move king in check.
+## 2. Contains illegal castling through check.
+def pseudo_legal_moves(pos, index)
+
+  piece = pos.pieces[index].type
+  type = chess.piece_type(piece)
+  color = chess.piece_color(piece)
+  
+  file = (index % 8) + 1
+  rank = 8 - math.floor(index / 8)
+  
+  moves = []
+  
+  ## Reusable bishop and rook move for queen and king.
+  pseudo_bishop_and_rook = fn (directions, once)
+    for direction in directions
+      to = chess.nb2cb(index)
+      while true
+        to += direction
+        if to < 0 or to >= chess._CALC_BOARD.length or not chess._CALC_BOARD[to]
+          break
+        end
+        
+        to_ = chess.cb2nb(to)
+        if pos.pieces[to_].type == chess.PIECE_NONE
+          moves.append(to_)
+        else
+          if chess.piece_color(pos.pieces[to_].type) != color
+            moves.append(to_)
+          end
+          break
+        end
+        if once then break end
+      end
+    end
+  end  
+  
+  {    
+    chess.PIECE_PAWN: fn
+      if color == chess.COL_WHITE
+        if rank == 2 ## Initial 2 moves.
+          if pos.pieces[index - 16].type == chess.PIECE_NONE
+            moves.append(index - 16)
+          end
+        end
+      elif color == chess.COL_BLACK
+        if rank == 7 ## Initial 2 moves.
+          if pos.pieces[index + 16].type == chess.PIECE_NONE
+            moves.append(index + 16)
+          end
+        end
+      end
+      
+      ## One square up.
+      direction = [1, -1][Number(color == chess.COL_WHITE)]
+      to = index + direction * 8
+      if (0 <= to and to < 64) and (pos.pieces[to].type == chess.PIECE_NONE)
+        moves.append(to)
+      end
+      
+      ## Capture diagonally.
+      for i in [7, 9]
+        to = index + direction * i
+        if pos.enpassant_target != -1 and to == pos.enpassant_target
+          moves.append(to)
+        elif (0 <= to and to < 64) and
+          (pos.pieces[to].type != chess.PIECE_NONE) and
+          (chess.piece_color(pos.pieces[to].type) != color)
+            moves.append(to)
+        end
+      end
+    end,
+    
+    chess.PIECE_ROOK: fn
+      pseudo_bishop_and_rook([-1, 1, -10, 10], false)
+    end,
+    
+    chess.PIECE_KNIGHT: fn
+      index = chess.nb2cb(index)
+      for pair in [[[-20, 20], [-1, 1]], [[-10, 10], [-2, 2]]]
+        for i in pair[0]
+          for j in pair[1]
+            to = index + i + j
+            if chess._CALC_BOARD[to]
+              to = chess.cb2nb(to)
+              if pos.pieces[to].type == chess.PIECE_NONE or
+                chess.piece_color(pos.pieces[to].type) != color
+                  moves.append(to)
+              end
+            end
+          end
+        end
+      end
+    end,
+    
+    chess.PIECE_BISHOP: fn
+      pseudo_bishop_and_rook([-9, -11, 9, 11], false)
+    end,
+    
+    chess.PIECE_QUEEN: fn
+      pseudo_bishop_and_rook([-9, -11, 9, 11], false)
+      pseudo_bishop_and_rook([-1, 1, -10, 10], false)
+    end,
+    
+    chess.PIECE_KING: fn
+      pseudo_bishop_and_rook([-9, -11, 9, 11], true)
+      pseudo_bishop_and_rook([-1, 1, -10, 10], true)
+      
+      ## Castling.
+      add_castling_move = fn(col, flag, empty_squares, to)
+        if color == col and pos.castling & flag
+          for square in empty_squares
+            if pos.pieces[square].type != chess.PIECE_NONE
+              return
+            end
+          end
+          moves.append(to)
+        end
+      end
+      
+      add_castling_move(chess.COL_WHITE, chess._CSTL_WK, [61, 62], 62)
+      add_castling_move(chess.COL_WHITE, chess._CSTL_WQ, [57, 58, 59], 58)
+      
+      add_castling_move(chess.COL_BLACK, chess._CSTL_BK, [5, 6], 6)
+      add_castling_move(chess.COL_BLACK, chess._CSTL_BQ, [1, 2, 3], 2)
+      
+    end,
+    
+  } [type]()
+
+  return moves
+end
+
+## Returns the legal moves of the piece at the index.
+## The piece must be the next color that should be played.
+def get_legal_moves_of(pos, index)
+  return pseudo_legal_moves(pos, index)
+end

@@ -1,0 +1,103 @@
+#
+# Copyright (c) 2022 Thakee Nathees
+# Distributed Under The MIT License
+#
+
+import raylib as rl
+import math, time
+
+from src.config import config
+from ^ui_element import UiElement
+import src.chess, src.utils
+
+## Since this class is a bit bigger, I've divided it into
+## inputs, updates and draws to handle them.
+import inputs, updates, draws
+
+## The ui board element that will handle events and draw the board.
+class Board is UiElement
+
+  ## The constructor.
+  def _init()
+    super()
+    
+    self.sqsz = 80 ## Square size.
+    self.pscale = .9 ## piece scale = .9 times square size.
+    
+    self.flipped = false
+    self.size = rl.Vector2(self.sqsz*8, self.sqsz*8)    
+    
+    ## Index of the selected or dragged piece on the board.
+    self._selected = -1
+    self._dragged = -1
+    
+    ## Array of legal move for the currently selected piece.
+    self._legal_moves = []
+    
+  end
+  
+  def initialize(gs)
+    super(gs)
+    self.gs.next_puzzle()
+    self._reset_piece_position()
+  end
+
+
+  def update()
+    inputs.handle_inputs(self)
+    updates.update(self)
+  end
+
+
+  def draw()
+    draws.draw_board(self)
+    draws.draw_legal_moves(self)
+    draws.draw_pieces(self)
+  end
+
+
+  #############################################################################
+  # INTERNAL METHODS
+  #############################################################################
+
+
+  ## Returns the ui coordinate of the square from the index of the square.
+  def _index_to_pos(index)
+    if self.flipped then index = 63 - index end
+    x = index % 8
+    y = math.floor(index / 8)
+    return rl.Vector2(
+      self.pos.x + x * self.sqsz,
+      self.pos.y + y * self.sqsz)
+  end
+  
+  
+  ## Since pieces are drawn middle of the square and they're scaled
+  ## this method will return the draw position of a piece.
+  def _index_to_piece_pos(index)
+    pos = self._index_to_pos(index)
+    padding = self.sqsz * (1 - self.pscale) / 2
+    pos.x += padding
+    pos.y += padding
+    return pos
+  end
+  
+  
+  def _mousepos_to_square_index()
+    mp = rl.GetMousePosition()
+    index = math.floor((mp.x - self.pos.x) / self.sqsz) +
+		        math.floor((mp.y - self.pos.y) / self.sqsz) * 8
+    if self.flipped
+      index = 63 - index
+    end
+    return index
+  end
+  
+  ## Move all the pieces to their squares.
+  def _reset_piece_position()
+    for i in 0..64
+      self.gs.cp.pieces[i].position = self._index_to_piece_pos(i)
+    end
+  end
+  
+end

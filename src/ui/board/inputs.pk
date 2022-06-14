@@ -1,0 +1,82 @@
+#
+# Copyright (c) 2022 Thakee Nathees
+# Distributed Under The MIT License
+#
+
+import raylib as rl
+import time
+import src.chess, src.game_state
+import updates
+
+def handle_inputs(board)
+
+  if rl.IsKeyPressed(rl.KEY_F)
+    board.flipped = not board.flipped
+    board._reset_piece_position()
+  end
+  
+  ## Handle mouse inputs.
+  if not board.contain_mouse()
+    return
+  end
+  
+  ## If the current color isn't player's color, return.
+  if board.gs.player_white != board.gs.cp.white_to_move
+    return
+  end
+  
+  ## Piece dragging and moving.
+  if board._dragged == -1 and rl.IsMouseButtonPressed(rl.MOUSE_BUTTON_LEFT)
+  
+    square_index = board._mousepos_to_square_index()
+    if square_index < 0 or square_index >= 64 then return end
+    piece = board.gs.cp.pieces[square_index]
+    if piece.type == chess.PIECE_NONE then return end
+    if board.gs.cp.white_to_move != chess.is_white(piece.type) then return end
+    board._dragged = square_index
+    board._legal_moves = board.gs.cp.get_legal_moves_of(square_index)
+
+  elif rl.IsMouseButtonReleased(rl.MOUSE_BUTTON_LEFT)
+    if not board.contain_mouse()
+      board._dragged = -1
+      return
+    end
+    if board._dragged == -1 and board._selected == -1
+      return
+    end
+      
+    to_square = board._mousepos_to_square_index()
+    if to_square == board._selected
+      board._selected = -1
+      board._dragged = -1
+      board._legal_moves.clear()
+      return
+    end
+      
+    if to_square == board._dragged
+      board._selected = to_square
+      board._dragged = -1
+      return
+    end
+      
+    from_square = board._selected
+    if board._dragged != -1 then from_square = board._dragged end
+    board._dragged = -1
+    board._selected = -1
+      
+    
+    ## TODO:
+    ##   Ask for promotion.
+    for lm in board._legal_moves
+      if to_square == lm
+        board.gs.cp.play(chess.Move(board.gs.cp, from_square, to_square, chess.PIECE_NONE))
+        board.gs.state = game_state.STATE_EVAL_PLAYER_MOVE
+        board.gs.timer = time.clock()
+        break
+      end
+    end
+      
+    board._legal_moves.clear()
+    end
+
+end
