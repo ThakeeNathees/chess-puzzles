@@ -9,8 +9,8 @@ downloading from the lichess puzzles database.
 <img src="https://user-images.githubusercontent.com/55296050/173678474-62321157-36fb-4a35-9d09-dca936693ed7.gif" width="50%">
 
 To run the application you need [pocketlang](https://github.com/ThakeeNathees/pocketlang)
-and [raylib-pocket](https://github.com/ThakeeNathees/raylib-pocket) library
-place the compiled raylib-pocket binary `raylib.dll` or `raylib.so`
+and [raylib-pocket](https://github.com/ThakeeNathees/raylib-pocket).
+Place the compiled raylib-pocket library `raylib.dll` or `raylib.so` at
 the pocketlang searchpath (`./raylib.dll`, `./raylib/_init.dll`,
 `<pocket-exe-dir>/libs/raylib.dll`, `<pocket-exe-dir>/libs/raylib/_init.dll`, etc)
 and run the main script using the bellow command.

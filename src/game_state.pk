@@ -7,7 +7,10 @@ import raylib as rl
 from src.config import config
 import src.chess
 import math, time
+import json, io, path
 
+## Resurces directory absolute path.
+SAVE_FILE = path.normpath(path.join(path.dirname(__file__), "save.json"))
 
 STATE_INITIAL = 0
 STATE_PLAYERS_MOVE = 1
@@ -35,6 +38,26 @@ class GameState
     
     self.cp = chess.Position()
     self.cp.apply_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
+    
+    self._load_file()
+  end
+  
+  def _load_file()
+    if path.exists(SAVE_FILE)
+      data = json.parse(io.readfile(SAVE_FILE))
+      self.curr_pz = data["curr_pz"]
+      self.done = data["done"]
+    end
+  end
+  
+  def _save_file()
+    save_data = {
+      "curr_pz" : self.curr_pz,
+      "done" : self.done,
+    }
+    fp = open(SAVE_FILE, 'w')
+    fp.write(json.print(save_data, true))
+    fp.close()
   end
   
   def next_puzzle()
@@ -42,6 +65,8 @@ class GameState
     if self.state != STATE_INITIAL
       self.done.append(not self.wrong_move)
     end
+    
+    self._save_file()
     
     self.state = STATE_AIS_MOVE
     

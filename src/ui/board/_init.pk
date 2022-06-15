@@ -39,6 +39,7 @@ class Board is UiElement
   def initialize(gs)
     super(gs)
     self.gs.next_puzzle()
+    self.flipped = not self.gs.player_white
     self._reset_piece_position()
   end
 
